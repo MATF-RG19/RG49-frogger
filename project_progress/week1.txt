@@ -1,0 +1,7 @@
+Building the base for the project
+
+
+
+
+Plan for the next week:
+-Build the models for the game

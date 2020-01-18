@@ -2,10 +2,14 @@
 #include <stdlib.h>
 #include <GL/glut.h>
 #include <math.h>
-#include <unordered_set>
+#include <algorithm>
+#include <list>
+#include<time.h>
 
 
-#define TIMER_INTERVAL 20
+using namespace std;
+
+#define TIMER_INTERVAL 2000
 #define TIMER_ID 0
 #define TIMER_ID2 1
 
@@ -17,7 +21,7 @@ static void on_timer(int id);
 void drawCoord();
 void drawPlane();
 void drawFrog();
-void drawCar(int);
+void drawCar(int,int);
 void drawLog(int,int);
 void drawTurtle();
 void drawTurtles(int,int);
@@ -59,12 +63,43 @@ double logHeight = 1;
 
 double turtleSize = planeWidth/6;
 
+//vars for randomising car lanes
+int myArray2[3] = {1,3,5};
+int index2;
+int lane2;
+
+int myArray1[2] = {2,4};
+int index1;
+int lane1;
+
+
+
+//structs for storing objects
 typedef struct{
     float offset;
     int lane;
+    int side;
+    float speed;
 }Car;
 
-unordered_set<Car> Cars;
+typedef struct{
+    float offset;
+    int lane;
+    int size;
+    float speed;
+}Log;
+
+typedef struct{
+    float offset;
+    int lane;
+    int size;
+    float speed;
+}Turtle;
+
+
+list<Car> Cars;
+list<Log> Logs;
+list<Turtle> Turtles;
 
 int main(int argc, char **argv)
 {
@@ -162,11 +197,8 @@ static void on_keyboard(unsigned char key, int x, int y){
             break;
         case 'g':
         case 'G':
-            if (!animation_ongoing) {
-                animation_ongoing = 1;
-                glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
-            }
-             glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID2);
+            glutTimerFunc(20, on_timer, TIMER_ID);
+            glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID2);
             break;
         case ';':
             animation_ongoing = 0;
@@ -209,8 +241,106 @@ void on_timer(int id) {
     } */
     switch(id){
         case TIMER_ID2:
-        printf("OVde sam\n");
-        break;
+
+            //adding cars to the list at 2000ms intervals
+            Car c;
+            //radnomise lane
+            srand ( time(NULL) );
+            index1 = rand() % 2;
+            lane1 = myArray1[index1];
+
+            c.offset=0;
+            c.side = 1;
+            c.lane=lane1;
+            c.speed=0.3;
+            Cars.push_back(c);
+
+
+            //randomise lane for cars going from left to right
+
+            index2 = rand() % 3;
+            lane2 = myArray2[index2];
+
+            Car c1;
+            c1.offset=planeLength;
+            c1.side = 0;
+            c1.lane=lane2;
+            c1.speed = -0.3;
+            Cars.push_back(c1);
+
+
+            //adding logs to the list
+            Log l1;
+            l1.offset=planeLength;
+            l1.lane=2;
+            l1.size=3;
+            l1.speed = -0.08 ;
+            Logs.push_back(l1);
+
+            Log l2;
+            l2.offset=planeLength;
+            l2.lane=3;
+            l2.size=7;
+            l2.speed = -0.20;
+            Logs.push_back(l2);
+
+            Log l3;
+            l3.offset=planeLength;
+            l3.lane=5;
+            l3.size=5;
+            l3.speed = -0.14;
+            Logs.push_back(l3);
+
+            //ading turtles to the list
+            Turtle t1;
+            t1.offset=0;
+            t1.size=3;
+            t1.lane=1;
+            t1.speed=0.15;
+            Turtles.push_back(t1);
+
+            Turtle t2;
+            t2.offset=0;
+            t2.size=2;
+            t2.lane=3;
+            t2.speed=0.20;
+            Turtles.push_back(t2);
+
+
+
+            glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID2);
+            break;
+        case TIMER_ID:
+            for(auto it = Cars.begin(); it != Cars.end(); it++){
+                it->offset += it->speed;
+    
+                //if branch beacuse different dissapearing point depening on side
+                if(it->speed < 0 ){
+                    if(it->offset < carLenght/2){
+                        it = Cars.erase(it);
+                    }
+                }
+                else{
+                    if(it->offset > planeLength - carLenght/2){
+                        it = Cars.erase(it);
+                    }
+                }
+            }
+            for(auto it = Logs.begin(); it != Logs.end(); it++){
+                it->offset += it->speed;
+                if(it->offset<-it->size)
+                it = Logs.erase(it);
+            }
+            for(auto it = Turtles.begin(); it != Turtles.end(); it++){
+                it->offset += it->speed;
+                if(it->offset>planeLength+(turtleSize*it->size)+turtleSize)
+                it = Turtles.erase(it);
+            }
+
+            //change
+            glutPostRedisplay();
+            glutTimerFunc(20, on_timer, TIMER_ID);
+            break;
     }
 }
 
@@ -236,13 +366,29 @@ static void on_display(void)
 
     //drawCoord();
     drawPlane();
-    for(int i =1;i<6;i++){
+    
+    for(auto it = Cars.begin(); it != Cars.end(); it++){
         glPushMatrix();
-        glTranslatef(animation_parameter*0.1,0,0);
-        drawCar(i);
+        glTranslatef(it->offset,0,0);
+        drawCar(it->lane,it->side);
         glPopMatrix();
     }
 
+    for(auto it = Logs.begin(); it != Logs.end(); it++){
+        glPushMatrix();
+        glTranslatef(it->offset,0,0);
+        drawLog(it->lane,it->size);
+        glPopMatrix();
+    }
+
+    for(auto it = Turtles.begin(); it != Turtles.end(); it++){
+        glPushMatrix();
+        glTranslatef(it->offset,0,0);
+        drawTurtles(it->lane,it->size);
+        glPopMatrix();
+    }
+
+    drawFrog();
 
     glColor3f(1, 1, 1);
     glLineWidth(4);
@@ -329,11 +475,14 @@ void drawFrog(){
 
 }
 
-void drawCar(int poss){
+void drawCar(int poss,int side){
     glColor3f(0.8,0.3,0.3);
     glPushMatrix();
-    //translacija na pocetnu poziciju
-    glTranslated(-planeLength/2,planeWidth/5*poss,planeHeight+carHeight/2+planeHeight);
+    //translacija na pocetnu poziciju u zavisnosti od strane
+    if(side)
+        glTranslated(-planeLength/2,planeWidth/5*poss,planeHeight+carHeight/2+planeHeight);
+    else
+        glTranslated(-planeLength/2,planeWidth/5*poss,planeHeight+carHeight/2+planeHeight);
 
     //main 
     glPushMatrix();
@@ -386,7 +535,7 @@ void drawLog(int poss,int logLenght){
     quadratic = gluNewQuadric();
     GLUquadricObj *quadratic1;
     quadratic1 = gluNewQuadric();
-    glTranslatef(-planeLength/2-2*logLenght,-poss*planeWidth/5,planeHeight/2+logHeight);
+    glTranslatef(-planeLength/2,-poss*planeWidth/5,planeHeight/2);
     glRotatef(90,0,1,0);
 
     //filling the cylinder from both sides
@@ -499,17 +648,17 @@ void drawTurtle(){
 
 }
 
-void drawTurtles(int pos,int num){
+void drawTurtles(int poss,int num){
     if(num==2){
     glPushMatrix();
-    glTranslatef(-planeLength/2-turtleSize*num,0,0);
+    glTranslatef(-planeLength/2-turtleSize*num/2,-poss*planeWidth/5,0);
     drawTurtle();
     glTranslatef(turtleSize,0,0);
     drawTurtle();
     glPopMatrix();   
     }else{
         glPushMatrix();
-            glTranslatef(-planeLength/2-turtleSize*num,0,0);
+            glTranslatef(-planeLength/2-turtleSize*num/2,0,0);
 
         drawTurtle();
         glTranslatef(turtleSize,0,0);

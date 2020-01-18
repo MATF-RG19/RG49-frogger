@@ -1,0 +1,8 @@
+Added frog and log models
+Added light
+Added color to the base
+Added some temp camera controls for easier debugging
+
+
+Plan for next week:
+-add animations
