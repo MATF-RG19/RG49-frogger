@@ -1,8 +1,8 @@
-Changed the project to c++ beacuse of use of lists
+Changed the project to c++ because of use of lists
 Added logic for animation
-Added logic for colisions
+Added logic for collisions
 Added turtle model
 Fixed log model
 
 Plan for next week:
--Do the colisions
+-Do the collisions

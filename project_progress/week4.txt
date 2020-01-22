@@ -1,0 +1,14 @@
+Added collisions logic
+Added death logic
+Optimized for speed(changed the number of slices on tori(plural of torus))
+Changed car spawn rate
+Added randomized color to the cars
+Refactored code
+Randomized spawning of logs and turtles
+Added the logic for dissapearing turtles
+
+Plan for next week:
+Add a gitmap
+Add textures
+
+
