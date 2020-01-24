@@ -5,19 +5,25 @@
 #include <algorithm>
 #include <list>
 #include<time.h>
+#include <iterator>
+#include <random>
 
 
 using namespace std;
 
 #define TIMER_INTERVAL 20
 #define TIMER_INTERVAL1 1000
-#define TIMER_INTERVAL2 1000
 #define TIMER_INTERVAL3 500
+#define TIMER_INTERVAL4 5500
 #define TIMER_ID 0
 #define TIMER_ID1 1
-#define TIMER_ID2 2
 #define TIMER_ID3 3
+#define TIMER_ID4 4
 
+
+//temp
+int pomerio=0;
+int activeHeart;
 
 /* Deklaracije callback funkcija. */
 static void on_keyboard(unsigned char key, int x, int y);
@@ -31,9 +37,24 @@ void drawCar(int,int);
 void drawLog(int,int);
 void drawTurtle(int);
 void drawTurtles(int,int,int);
+void drawheart(int,int);
 
+//taken from the internet for randomly selecting an item from collection
+template<typename Iter, typename RandomGenerator>
+Iter select_randomly(Iter start, Iter end, RandomGenerator& g) {
+    std::uniform_int_distribution<> dis(0, std::distance(start, end) - 1);
+    std::advance(start, dis(g));
+    return start;
+}
+//taken from the internet
+template<typename Iter>
+Iter select_randomly(Iter start, Iter end) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    return select_randomly(start, end, gen);
+}
 
-int globalTimer;
+int globalRandInt=0;
 
 double headX;
 double headY;
@@ -54,6 +75,8 @@ int oldValue = 0;
 double frogBody = planeWidth/10;
 double frogHead=frogBody*0.6;
 double frogLegs=frogBody*0.3;
+//used for dissapearing
+int numberofBlinks = 6;
 
 
 double carLenght = planeWidth/3;
@@ -72,13 +95,16 @@ int lane2;
 int myArray1[2] = {2,4};
 int index1;
 int lane1;
+
+//list for randomising heart
+list<double> heartsArray = {planeLength*0.05, planeLength*0.20, planeLength*0.35, planeLength*0.50, planeLength*0.65, planeLength*0.80};
+
 //ranomising turtles
 int dissTurtle;
 
 
 //var for detecting death
-int movingOnLogThisCycle;
-int movingOnTurtleThisCycle;
+
 
 
 //structs for storing objects
@@ -101,9 +127,9 @@ typedef struct{
     int lane;
     int size;
     float speed;
-    /*states used for dissapearing logic
+    /*states used for dissapearing logic.
     if turtle is randmly selected to dissapear(happens every second)
-    state changes every half second for 4 cycles (changing the color of the turtle)
+    state changes every half second for *int numberofBlinks* cycles (changing the color of the turtle)
     and after that the turtle dissapears
     */
     int state;
@@ -115,16 +141,27 @@ typedef struct{
     float offset;
     float speed;
     int dead;
+    int movingOnLogThisCycle;
+    int movingOnTurtleThisCycle;
+    int coughtHeartThisCycle;
 }Frog;
+
+typedef struct{
+    int rotParm;
+    double offset;
+    int taken;
+}Heart;
 
 //Lists for storing objects
 Frog frog;
 list<Car> Cars;
 list<Log> Logs;
 list<Turtle> Turtles;
+list<Heart> Hearts;
 
 //tmp
 list<Turtle>::iterator diss;
+list<double>::iterator heartIt;
 
 
 int main(int argc, char **argv)
@@ -178,6 +215,8 @@ int main(int argc, char **argv)
     frog.speed =-0;
     frog.dead=0;
 
+    
+
     glutMainLoop();
 
     return 0;
@@ -205,13 +244,14 @@ static void on_keyboard(unsigned char key, int x, int y){
         case 't':
             headX = 0;
             headY = 0.1;
-            headZ = 20;
+            headZ = planeLength;
             glutPostRedisplay();
             break;
         case 'r':
             headX = 0;
-            headY = 20;
-            headZ = 0;
+            headY = planeLength;
+            headZ = planeLength/2+planeWidth;
+            pomerio=0;
             glutPostRedisplay();
             break;
         case 'l':
@@ -230,8 +270,9 @@ static void on_keyboard(unsigned char key, int x, int y){
         case 'G':
             glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
             glutTimerFunc(TIMER_INTERVAL1,on_timer, TIMER_ID1);
-            glutTimerFunc(TIMER_INTERVAL2, on_timer, TIMER_ID2);
             glutTimerFunc(TIMER_INTERVAL3, on_timer, TIMER_ID3);
+            glutTimerFunc(TIMER_INTERVAL4, on_timer, TIMER_ID4);
+
             break;
         
         //frog movement
@@ -259,6 +300,37 @@ static void on_keyboard(unsigned char key, int x, int y){
 
 void on_timer(int id) {
     switch(id){
+        case TIMER_ID4:
+            //if we have 6 hears we are done
+            if(Hearts.size()!=6){
+                //randomly select from a list of possible possitions
+                heartIt = select_randomly(heartsArray.begin(), heartsArray.end());
+               
+                //fill the Heart stuct
+                Heart h;
+                h.offset=*heartIt;
+                h.taken=0;
+                h.rotParm=0;
+                
+                //remove the current possition of the heart from the list
+                //so that the next heart doesnt spawing in that place
+                heartIt = heartsArray.erase(heartIt);
+
+                for(auto it = Hearts.begin(); it != Hearts.end(); it++){
+                    //removes all hearts that are not taken (its always just one heart)
+                    if(!it->taken){
+                        //before deleting the heart return it's possition to the list so
+                        //that the next hart can possibly take that possition
+                        heartsArray.push_back(it->offset);
+                        //erase the heart
+                        it= Hearts.erase(it);
+                    }
+                }
+                //push back the heart now, and not eralier so that it doesn't get deleted in the for loop
+                Hearts.push_back(h);
+            }
+            glutTimerFunc(TIMER_INTERVAL4,on_timer,TIMER_ID4);
+            break;
         case TIMER_ID1:
 
            //adding cars to the list at interval
@@ -286,42 +358,28 @@ void on_timer(int id) {
             c1.color=rand()%3;
             Cars.push_back(c1); 
             
-            /*this logic is in this timer(and not in timerid3 ) becasue we want this
-            to happen every second, and that is this timer's TIME_INTERVAL
-            */
-            //get a random index from turtle list
-            dissTurtle = rand() % (Turtles.size() + 1 - 0) + Turtles.size();
-            //get a  Turtle object with that index
-            diss= std::next(Turtles.begin(), dissTurtle);
-            //if it isnt dissapearing already make it dissapear
-            if(diss->state==0)
-                diss->state=1;
-            
-
-
-            glutTimerFunc(TIMER_INTERVAL1,on_timer,TIMER_ID1);
-            break;
-        case TIMER_ID2:
-            //doubled the timer-interval and added a random element to upper objects
+        
+            //if statement to make the appearance more random
             if(rand()%2){
                 //adding logs to the list
+
                 Log l1;
                 l1.offset=planeLength;
-                l1.lane=2;
+                l1.lane=-2;
                 l1.size=3;
                 l1.speed = -0.1 ;
                 Logs.push_back(l1);
 
                 Log l2;
                 l2.offset=planeLength;
-                l2.lane=3;
+                l2.lane=-3;
                 l2.size=7;
                 l2.speed = -0.20;
                 Logs.push_back(l2);
 
                 Log l3;
                 l3.offset=planeLength;
-                l3.lane=5;
+                l3.lane=-5;
                 l3.size=5;
                 l3.speed = -0.15;
                 Logs.push_back(l3); 
@@ -330,7 +388,7 @@ void on_timer(int id) {
                 Turtle t1;
                 t1.offset=0;
                 t1.size=3;
-                t1.lane=1;
+                t1.lane=-1;
                 t1.speed=0.15;
                 t1.red=0;
                 t1.state=0;
@@ -339,24 +397,31 @@ void on_timer(int id) {
                 Turtle t2;
                 t2.offset=0;
                 t2.size=2;
-                t2.lane=4;
+                t2.lane=-4;
                 t2.speed=0.20;
                 t2.red=0;
                 t2.state=0;
                 Turtles.push_back(t2);
+
+                //every second a radnom turtle gets chosen to dissapear
+                diss = select_randomly(Turtles.begin(),Turtles.end());
+                //if it isnt dissapearing already make it dissapear
+                if(diss->state==0)
+                    diss->state=1;
             }
-            glutTimerFunc(TIMER_INTERVAL2,on_timer,TIMER_ID2);
+            glutTimerFunc(TIMER_INTERVAL1,on_timer,TIMER_ID1);
             break;
         case TIMER_ID3:
             /*special timer for dissapearing turtles, timer interval is 500ms
-            so that every 500ms the chosen(to dissapear) turtle changes color
-            and after 4 cycles of that it dissapears
+            so that every 500ms the chosen(to dissapear) turtle changes color and eventualy dissapears
             */
             for(auto it = Turtles.begin(); it != Turtles.end(); it++){
-                if(it->state>4){
+                //if the turtle has blinked enough times its time to go!
+                if(it->state>numberofBlinks){
                     it = Turtles.erase(it);
                     continue;
                 }
+                //if it is still alive we change the color depengin on the state and increment the state
                 if(it->state > 0){
                     if(it->state%2!=0){
                         it->red=1;
@@ -371,53 +436,69 @@ void on_timer(int id) {
             glutTimerFunc(TIMER_INTERVAL3, on_timer, TIMER_ID3);
             break;
         case TIMER_ID:
-            //animate and delete objects that are no longer needed
+
+            //the quickest timer used to animate and delete objects that are no longer needed
             for(auto it = Cars.begin(); it != Cars.end(); it++){
                 //changing offset by factor of speed
                 it->offset += it->speed;
-
-                //if branch needed beacause different dissapearing point deppenging on a side car comes from
+                
+                //if branch needed beacause different dissapearing point is deppenging on a side car comes from
                 if(it->speed < 0 ){
-                    if(it->offset < carLenght/2){
+                    if(it->offset < 0){
                         it = Cars.erase(it);
                     }
                 }
                 else{
-                    if(it->offset > planeLength - carLenght/2){
+                    if(it->offset > planeLength){
                         it = Cars.erase(it);
                     }
                 }
             }
-            //
+            //animating and removing logs
             for(auto it = Logs.begin(); it != Logs.end(); it++){
                 it->offset += it->speed;
                 if(it->offset < -it->size)
                     it = Logs.erase(it);
             }
+            //animating and removing turtles
             for(auto it = Turtles.begin(); it != Turtles.end(); it++){
                 it->offset += it->speed;
-                if(it->offset > planeLength + (turtleSize*it->size) + turtleSize || it->state>4)
+                if(it->offset > planeLength + (turtleSize*it->size) + turtleSize || it->state>numberofBlinks)
                     it = Turtles.erase(it);
             }
-
-            //frog only moves if it is on the upper part of the map(Thats where the lane bumer is negative)
+            
+            //frog only moves if it is on the upper part of the map(Thats where the lane number is negative)
             if(frog.lane<0){
                 frog.offset += frog.speed;
             }
+
+            //if frog is dead remove all hearts that are not taken, or just update the rotPar
+            for (auto it = Hearts.begin(); it != Hearts.end(); ) {
+                if (frog.dead && it->taken && !frog.coughtHeartThisCycle) {
+                    heartsArray.push_back(it->offset);
+                    it = Hearts.erase(it);
+                }
+                else {
+                    it->rotParm = (it->rotParm + 1)%180;
+                    ++it;
+                }
+            }
+
             //frog.speed is set to 0 after changing the offset in case that in the next itteration its not on the object anymore
             frog.speed=0;
             //checking if frog is dead RIP
             if(frog.dead){
                 frog.lane=6;
                 frog.offset=planeLength/2;
-                frog.speed =-0;
+                frog.speed =0;
             }
+                frog.dead=0;
             glutPostRedisplay();
             glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
             break;
     }
 }
-
+/*TODO*/ //NE BRISE LEPO SVE OBJEKTE IZ LISTE
 static void on_display(void)
 {
    /* Brise se prethodni sadrzaj prozora. */
@@ -426,7 +507,7 @@ static void on_display(void)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glEnable(GL_DEPTH_TEST);
-    gluPerspective(60, 1, 1, 800); 
+    gluPerspective(53, 1, 1, 800); 
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -437,10 +518,23 @@ static void on_display(void)
         atX, atY, atZ,
         0, 0, 1
     );
-    frog.dead=0;
     //drawCoord();
     drawPlane();
 
+    //clipping planes for better looking entereing and dissapearing of objects
+    GLdouble plane0[] = {1, 0,0, planeLength/2};
+    GLdouble plane1[] = {-1, 0, 0, planeLength/2};
+
+    glEnable(GL_CLIP_PLANE0);
+    glEnable(GL_CLIP_PLANE1);
+
+    glClipPlane(GL_CLIP_PLANE0, plane0);
+    glClipPlane(GL_CLIP_PLANE1, plane1);
+
+
+    
+
+   // glDisable(GL_CLIP_PLANE1);
 
 
     //going through all the cars in Cars list
@@ -454,51 +548,62 @@ static void on_display(void)
 
         //collisions
         //if the frog is in the same lane as car and the offset is within the margin its a COLLISION!
-        if(it->lane == frog.lane && abs(it->offset - frog.offset)<carLenght/2){
+        if(it->lane == frog.lane && abs(it->offset - frog.offset)<carLenght/2+frogBody/2){
             frog.dead = 1;
         }
     }
     //used to determine if the frog is on any object during this cycle
-    movingOnLogThisCycle=0;
+    frog.movingOnLogThisCycle=0;
 
     for(auto it = Logs.begin(); it != Logs.end(); it++){
         glPushMatrix();
         glTranslatef(it->offset,0,0);
         drawLog(it->lane,it->size);
         glPopMatrix();
-
-        if(frog.lane==-2 || frog.lane==-3 || frog.lane==-5){
-            //fprintf(stderr,"%d",frog.lane);
-            if(it->lane == abs(frog.lane) && (frog.offset-it->offset)< it->size &&(frog.offset-it->offset) >0){
-                frog.speed = it->speed;
-                movingOnLogThisCycle=1;
-            }
+        /*if the frog is in the same lane as the Log and the collision condition is 
+        fulfilled  we set the frog speed to match the log speed
+        */
+        if(it->lane == frog.lane && (frog.offset-it->offset)< it->size &&(frog.offset-it->offset) >0){
+            frog.speed = it->speed;
+            frog.movingOnLogThisCycle=1;
         }
     }
-    //if it is on lanes where logs are, and it's not on a log, that means death
-    if(!movingOnLogThisCycle && (frog.lane==-2 || frog.lane==-3 || frog.lane==-5)){
-        frog.dead=1;
-    }
-
-
+  
     //death Var set to 0 at the beggining of every display cycle
-    movingOnTurtleThisCycle=0;
+    frog.movingOnTurtleThisCycle=0;
 
     for(auto it = Turtles.begin(); it != Turtles.end(); it++){
+        //animation
         glPushMatrix();
         glTranslatef(it->offset,0,0);
-        glColor3f(0.8,0.3,0.3);
         drawTurtles(it->lane,it->size,it->red);
         glPopMatrix();
-        if(frog.lane==-1 || frog.lane ==-4){
-            if(it->lane == abs(frog.lane) && (it->offset-frog.offset) < it->size*turtleSize && (it->offset-frog.offset) >0){
+
+        if(it->lane == frog.lane && (it->offset-frog.offset) < it->size*turtleSize && (it->offset-frog.offset) >0){
                 frog.speed = it->speed;
-                movingOnTurtleThisCycle=1;
-            }
+                frog.movingOnTurtleThisCycle=1;
         }
     }
-    //checking the death cond
-    if(!movingOnTurtleThisCycle && (frog.lane==-1 || frog.lane ==-4)){
+
+    frog.coughtHeartThisCycle =0;
+
+    for(auto it = Hearts.begin(); it != Hearts.end(); it++){
+        glPushMatrix();
+        glTranslatef(it->offset,0,0);
+        drawheart(it->rotParm, it->taken);
+        glPopMatrix();
+
+        if(frog.lane==-6 && abs(it->offset - frog.offset) < frogBody){
+            //the condition is here so that you cant catch taken hearts more than once
+            if(!it->taken){
+                it->taken=1;
+                frog.coughtHeartThisCycle = 1;
+            }
+        }
+
+    }
+    //checking the death cond 
+    if(frog.lane < 0 && !(frog.movingOnLogThisCycle || frog.movingOnTurtleThisCycle)){
         frog.dead=1;
     }
 
@@ -507,19 +612,15 @@ static void on_display(void)
         frog.dead=1;
     }
 
-
-    //for debug
-  //  printf("Imamo %d auta, % d zaba i %d drveca\n", Cars.size(),Turtles.size(),Logs.size());
-    //fflush(stdout);
+    //animate the frog
     glPushMatrix();
         glTranslatef(frog.offset,0,0);
         drawFrog(frog.lane);
     glPopMatrix();   
-    // printf("%d is lane, %.2f is offset\n",frog.lane ,frog.offset);
 
-    //printf("Imamo %d auta, % d kornjaca i %d drveca\n", Cars.size(),Turtles.size(),Logs.size());
-        
 
+    glDisable(GL_CLIP_PLANE0);
+    glDisable(GL_CLIP_PLANE1);
 
     glColor3f(1, 1, 1);
     glLineWidth(4);
@@ -527,6 +628,28 @@ static void on_display(void)
     glutSwapBuffers();
 }
 
+void drawheart(int rotParm, int taken){
+    glPushMatrix();
+    glTranslatef(-planeLength/2,-planeWidth-marginWidth,1.5);
+    glRotatef(90,1,0,0);
+    taken ? glRotated(0,0,1,0) : glRotated(rotParm,0,1,0);
+    glScalef(1.5,1.5,1.5);
+    //code for drawing the heart taken from the internet
+    glPointSize(5);
+    gluOrtho2D(-2, 2, -2, 2);
+    taken ? glColor3ub(0, 255, 0) : glColor3ub(255, 0, 0);  // Color Red
+    glBegin(GL_POINTS);
+        for (float x = -1.139; x <= 1.139; x += 0.001) 
+        {
+            float delta = cbrt(x*x) * cbrt(x*x) - 4*x*x + 4;
+            float y1 = (cbrt(x*x) + sqrt(delta)) / 2;
+            float y2 = (cbrt(x*x) - sqrt(delta)) / 2;
+            glVertex2f(x, y1);
+            glVertex2f(x, y2);
+        }
+    glEnd();
+    glPopMatrix();
+}
 
 
 //draw cordinate grid for debugging
@@ -685,7 +808,7 @@ void drawLog(int poss,int logLenght){
     quadratic = gluNewQuadric();
     GLUquadricObj *quadratic1;
     quadratic1 = gluNewQuadric();
-    glTranslatef(-planeLength/2,-poss*planeWidth/5,planeHeight/2);
+    glTranslatef(-planeLength/2,poss*planeWidth/5,planeHeight/2);
     glRotatef(90,0,1,0);
 
     //filling the cylinder from both sides
@@ -758,7 +881,7 @@ void drawTurtle(int red){
     //check if red
     red ? glColor3f(0.7,0.3,0.1) : glColor3f(0.3,0.7,0.1);
 
-    glTranslatef(0,-planeWidth/5,planeHeight+turtleSize/10);
+    glTranslatef(0,0,planeHeight+turtleSize/10);
     glutSolidTorus(turtleSize/5,turtleSize/5,15,15);
     //head
     glPushMatrix();
@@ -804,21 +927,15 @@ void drawTurtle(int red){
 }
 //this needs refactoring
 void drawTurtles(int poss,int num,int red){
-    if(num==2){
     glPushMatrix();
-        glTranslatef(-planeLength/2-turtleSize*num/2,-(poss-1)*planeWidth/5,0);
+        glTranslatef(-planeLength/2-turtleSize/2,poss*planeWidth/5,0);
         drawTurtle(red);
-        glTranslatef(turtleSize,0,0);
+        glTranslatef(-turtleSize,0,0);
         drawTurtle(red);
+        if(num==3){
+            glTranslatef(-turtleSize,0,0);
+            drawTurtle(red);  
+        }
     glPopMatrix();   
-    }else{
-        glPushMatrix();
-            glTranslatef(-planeLength/2-turtleSize*num/2,0,0);
-            drawTurtle(red);
-            glTranslatef(turtleSize,0,0);
-            drawTurtle(red);
-            glTranslatef(-2*turtleSize,0,0);
-            drawTurtle(red);
-        glPopMatrix();
-    }
+    
 }

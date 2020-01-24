@@ -1,0 +1,3 @@
+Refactored frog death by water logic 
+Added hearts game mechaninc
+Refractored code even more
