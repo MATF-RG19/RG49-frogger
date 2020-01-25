@@ -1,3 +1,12 @@
 Refactored frog death by water logic 
 Added hearts game mechaninc
+Fized resizing issues
 Refractored code even more
+Added smoother frog movement
+Added basic bitmap
+Added lives mechaninc to the game
+
+Plan for the next week:
+Add texture
+Possibly fix the bitmap
+Finishing touches

@@ -7,6 +7,7 @@
 #include<time.h>
 #include <iterator>
 #include <random>
+#include <string.h>
 
 
 using namespace std;
@@ -29,7 +30,9 @@ int activeHeart;
 static void on_keyboard(unsigned char key, int x, int y);
 static void on_display(void);
 static void on_timer(int id);
+static void on_reshape(int,int);
 
+void drawText();
 void drawCoord();
 void drawPlane();
 void drawFrog(int);
@@ -144,6 +147,13 @@ typedef struct{
     int movingOnLogThisCycle;
     int movingOnTurtleThisCycle;
     int coughtHeartThisCycle;
+    int noOfLives;
+    //vars used to smoothly move frog
+    int shouldMove;
+    double laneOffset;
+    double laneDirection;
+
+
 }Frog;
 
 typedef struct{
@@ -162,6 +172,40 @@ list<Heart> Hearts;
 //tmp
 list<Turtle>::iterator diss;
 list<double>::iterator heartIt;
+
+int WinWidth;
+int WinHeight;
+double WinRatio;
+
+double tmpSpeed;
+int noTimes;
+
+
+/*
+    This is a weird function because the collisions were done before this func and they depend the
+    lane of the frog beeing integer(so instead of changing the way frog colides with things we get this func) 
+    To move the frog smoothly we change the offset until it reaces the desired lane
+    than we revert the offset and change the lane.
+*/
+
+void moveFrog(){
+    //set the speed depengin on the movVar(direction)
+
+    double laneSpeed;
+    frog.laneDirection ? laneSpeed = +0.3 : laneSpeed = -0.3 ;
+    //chagne the laneOffset used when drawing the Frog
+    frog.laneOffset += laneSpeed;
+
+    //if the lane offset reaches 1 or -1 depengin on the direction
+    //we set the lane of the frog to the needed one and reset the offset
+    if(frog.laneDirection ? frog.laneOffset > 1 : frog.laneOffset < -1 ){
+        frog.laneOffset = 0;
+        frog.laneDirection ? frog.lane++ : frog.lane--;
+        frog.shouldMove=0;
+    }
+}
+
+
 
 
 int main(int argc, char **argv)
@@ -187,6 +231,7 @@ int main(int argc, char **argv)
     glClearColor(0.75, 0.75, 0.75, 0);
     glutKeyboardFunc(on_keyboard);
     glutDisplayFunc(on_display);
+    glutReshapeFunc(on_reshape);
 
     //prekopiran deo za osvetljenje iz kostura koji je dat za kolokvijum
     glEnable(GL_NORMALIZE);
@@ -212,14 +257,24 @@ int main(int argc, char **argv)
     //initialising frog at the beggining
     frog.lane=6;
     frog.offset=planeLength/2;
-    frog.speed =-0;
+    frog.speed =0;
     frog.dead=0;
+    frog.noOfLives=3;
+
 
     
 
     glutMainLoop();
 
     return 0;
+}
+
+static void on_reshape(int width,int height){
+    WinWidth=width;
+    WinHeight=height;
+    WinRatio = (double)width/height;
+    glViewport(0,0,width,height);
+    glutPostRedisplay();
 }
 
 static void on_keyboard(unsigned char key, int x, int y){
@@ -285,11 +340,13 @@ static void on_keyboard(unsigned char key, int x, int y){
         glutPostRedisplay();
         break;
         case 's':
-        frog.lane += 1;
+        frog.shouldMove=1;
+        frog.laneDirection=1;
         glutPostRedisplay();
         break;
         case 'w':
-        frog.lane -= 1;
+        frog.shouldMove=1;
+        frog.laneDirection=0;
         glutPostRedisplay();
         break;
         
@@ -468,13 +525,12 @@ void on_timer(int id) {
             }
             
             //frog only moves if it is on the upper part of the map(Thats where the lane number is negative)
-            if(frog.lane<0){
                 frog.offset += frog.speed;
-            }
+            
 
-            //if frog is dead remove all hearts that are not taken, or just update the rotPar
+            //if frog runs out of lives remove all hearts that are not taken, or just update the rotPar
             for (auto it = Hearts.begin(); it != Hearts.end(); ) {
-                if (frog.dead && it->taken && !frog.coughtHeartThisCycle) {
+                if (frog.noOfLives==0 && it->taken && !frog.coughtHeartThisCycle) {
                     heartsArray.push_back(it->offset);
                     it = Hearts.erase(it);
                 }
@@ -484,6 +540,10 @@ void on_timer(int id) {
                 }
             }
 
+            if(frog.shouldMove){
+                moveFrog();
+            }
+
             //frog.speed is set to 0 after changing the offset in case that in the next itteration its not on the object anymore
             frog.speed=0;
             //checking if frog is dead RIP
@@ -491,6 +551,9 @@ void on_timer(int id) {
                 frog.lane=6;
                 frog.offset=planeLength/2;
                 frog.speed =0;
+                if(frog.noOfLives==0)
+                    frog.noOfLives=3;
+                
             }
                 frog.dead=0;
             glutPostRedisplay();
@@ -507,7 +570,7 @@ static void on_display(void)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glEnable(GL_DEPTH_TEST);
-    gluPerspective(53, 1, 1, 800); 
+    gluPerspective(53, WinRatio, 1, 800); 
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -534,7 +597,6 @@ static void on_display(void)
 
     
 
-   // glDisable(GL_CLIP_PLANE1);
 
 
     //going through all the cars in Cars list
@@ -550,6 +612,7 @@ static void on_display(void)
         //if the frog is in the same lane as car and the offset is within the margin its a COLLISION!
         if(it->lane == frog.lane && abs(it->offset - frog.offset)<carLenght/2+frogBody/2){
             frog.dead = 1;
+            frog.noOfLives--;
         }
     }
     //used to determine if the frog is on any object during this cycle
@@ -604,19 +667,36 @@ static void on_display(void)
     }
     //checking the death cond 
     if(frog.lane < 0 && !(frog.movingOnLogThisCycle || frog.movingOnTurtleThisCycle)){
-        frog.dead=1;
+        if(frog.coughtHeartThisCycle){
+            //if frog cought a car it doesnt die it just get reset to the begginging
+            frog.lane=6;
+            frog.offset=planeLength/2;
+            frog.speed =0;
+        }
+        else{
+            frog.dead=1;
+            frog.noOfLives--;
+
+        }
     }
 
     //death out out bounds
     if(frog.lane > 6 || frog.lane < -6 || frog.offset>planeLength || frog.offset<0){
         frog.dead=1;
+        frog.noOfLives--;
+
     }
 
     //animate the frog
     glPushMatrix();
-        glTranslatef(frog.offset,0,0);
+        glTranslatef(frog.offset,frog.laneOffset,0);
         drawFrog(frog.lane);
-    glPopMatrix();   
+    glPopMatrix();
+
+
+    glDisable(GL_LIGHTING);
+		drawText();
+	glEnable(GL_LIGHTING);   
 
 
     glDisable(GL_CLIP_PLANE0);
@@ -725,6 +805,32 @@ void drawFrog(int lane){
     glPopMatrix();
 
     glPopMatrix();  
+}
+
+
+void drawText() {
+	char text[50];
+	glColor3f(0,0,0);
+    int len;
+	
+	glPushMatrix();
+		glRasterPos3f(planeLength/2, -planeWidth-marginWidth*3, 0);
+		sprintf(text, "Lives left: %d", frog.noOfLives);
+		len = strlen(text);
+		for (int i = 0; i < len; i++) {
+			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, text[i]);
+		}
+	glPopMatrix();
+    if(Hearts.size()==6){
+        glPushMatrix();
+            glRasterPos3f(0, -planeWidth-marginWidth*2,0 );
+            sprintf(text, "VICTORY!", frog.speed);
+            len = strlen(text);
+            for (int i = 0; i < len; i++) {
+                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, text[i]);
+            }
+        glPopMatrix();
+    }
 }
 
 void drawCar(int poss,int color){
