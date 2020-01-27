@@ -14,7 +14,7 @@ The goal of the game is to collect all 6 :heart: . To do that you must avoid dan
 |<kbd>a</kbd> |Move to the left |
 |<kbd>d</kbd> |Move to the right |
 |<kbd>t</kbd> |Change to top view |
-|<kbd>r</kbd> |Change to regular view |
+|<kbd>n</kbd> |Change to normal view |
 |<kbd>r</kbd> |Reset the game|
 |<kbd>o</kbd> |Toggle the texture|
 |<kbd>q</kbd>|Quit the game|
