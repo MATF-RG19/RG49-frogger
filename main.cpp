@@ -519,7 +519,7 @@ void on_timer(int id) {
             
            //if frog runs out of lives remove all hearts that are not taken, or just update the rotPar
             for(auto it = Hearts.begin(); it != Hearts.end(); ) {
-                if (frog.noOfLives==0 && it->taken && !frog.coughtHeartThisCycle) {
+                if (frog.noOfLives<=0 && it->taken && !frog.coughtHeartThisCycle) {
                     heartsArray.push_back(it->offset);
                     it = Hearts.erase(it);
                 }
@@ -555,7 +555,7 @@ void on_timer(int id) {
                 frog.dead=0;
 
                 //if we run out of lives the hearts dissapear and we get 3 lives back again
-                if(frog.noOfLives==0)
+                if(frog.noOfLives<=0)
                     frog.noOfLives=3;
                 
             }
