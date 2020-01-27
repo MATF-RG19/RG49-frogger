@@ -34,8 +34,11 @@ using namespace std;
 #define TIMER_ID3 3
 #define TIMER_ID4 4
 //texture
+
 #define FILENAME0 ("water.bmp")
 int texture;
+static GLuint names[1];
+
 
 
 
@@ -57,7 +60,6 @@ void drawTurtle(int);
 void drawTurtles(int,int,int);
 void drawheart(int,int);
 void moveFrog();
-int areAllHeartsTaken();
 
 //taken from the internet for randomly selecting an item from collection
 template<typename Iter, typename RandomGenerator>
@@ -186,7 +188,6 @@ double WinRatio;
 
 //Var for the game ending
 int gameOver;
-static GLuint names[1];
 
 
 int main(int argc, char **argv)
@@ -714,7 +715,7 @@ static void on_display(void)
 
     }
 
-    //animate the frog unsing the fro struct
+    //animate the frog using the frog struct
     glPushMatrix();
         glTranslatef(frog.offset,frog.laneOffset,0);
         drawFrog(frog.lane);
@@ -732,17 +733,6 @@ static void on_display(void)
     glLineWidth(4);
 
     glutSwapBuffers();
-}
-
-int areAllHeartsTaken(){
-    int counter;
-    for(auto it = Hearts.begin(); it != Hearts.end(); ) {
-        if(it->taken){
-            counter++;
-        }
-    }
-    return counter == 6 ? 1:0;
-
 }
 
 /* ALL THE DRAWING FUNCTIONS */

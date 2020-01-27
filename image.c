@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include "image.h"
 
+/* CODE TAKEN FROM COURSE MATERIALS */
+
 Image *image_init(int width, int height) {
 
   Image *image;

@@ -1,3 +1,8 @@
+
+
+/* CODE TAKEN FROM COURSE MATERIALS */
+
+
 /*
  * Dve strukture koje opisuju strukturu dva zaglavlja
  * kojima pocinje svaka slika u bmp formatu.
