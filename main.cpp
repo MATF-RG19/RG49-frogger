@@ -96,7 +96,7 @@ double frogHead=frogBody*0.6;
 double frogLegs=frogBody*0.3;
 
 //used for dissapearing
-int numberofBlinks = 6;
+int numberofBlinks;
 
 /*Vars for drawing cars,logs,and turtles */
 double carLenght = planeWidth/3;
@@ -189,6 +189,10 @@ double WinRatio;
 //Var for the game ending
 int gameOver;
 
+//Var for game difficulty 
+int gameDifficulty;
+int livesTotal;
+
 
 int main(int argc, char **argv)
 {
@@ -199,6 +203,9 @@ int main(int argc, char **argv)
     atX = 0;
     atY = 0;
     atZ = 0;
+    //
+    gameDifficulty=1;
+    livesTotal=3;
     /* Initialise  GLUT. */
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
@@ -247,7 +254,8 @@ int main(int argc, char **argv)
     frog.offset=planeLength/2;
     frog.speed =0;
     frog.dead=0;
-    frog.noOfLives=3;
+    frog.noOfLives=livesTotal;
+    
 
     initializeTexture();
     glutMainLoop();
@@ -288,11 +296,30 @@ static void on_keyboard(unsigned char key, int x, int y){
                 it = Hearts.erase(it);
             }
             frog.dead=1;
-            frog.noOfLives=3;
+            frog.noOfLives=livesTotal;
             break;
         case 'o':
             //toggle for the texture in case someone prefers to play without it
             texture = !texture;
+            break;
+
+        case 'l':
+
+            //toggle the difficulty
+            if(gameDifficulty==0){
+                gameDifficulty++;
+                livesTotal=3;
+            }
+            else if(gameDifficulty==1){
+                gameDifficulty++;
+                livesTotal=2;
+            }
+            else{
+                gameDifficulty=0;
+                livesTotal=5;
+            }
+            frog.dead=1;
+            frog.noOfLives=livesTotal;
             break;
 
         
@@ -360,6 +387,24 @@ void on_timer(int id) {
 
         /* Timer used for creating cars, turtles, and logs */
         case TIMER_ID1:
+            //debug
+            //fprintf(stderr,"Auta ima %d, logova %d kornjaca %d\n,",Cars.size() ,Logs.size(), Turtles.size());
+
+
+
+            //difficulty speed settings
+            float speedModify;
+
+            if(gameDifficulty==0){
+                speedModify=0.8;
+            }
+            else if(gameDifficulty==2){
+                speedModify=1.2;
+            }
+            else {
+                speedModify=1;
+            }
+
 
             /* add one car going from left to right and one car going from right to left in randomly selected lanes */
             Car c;
@@ -373,7 +418,7 @@ void on_timer(int id) {
             //offset is 0 for car going from left to right
             c.offset=0;
             c.lane=lane1;
-            c.speed=0.3;
+            c.speed=0.3*speedModify;
             srand(time(NULL)+2);
             c.color = rand()%3;
 
@@ -384,11 +429,13 @@ void on_timer(int id) {
             index2 = rand() % 3;
             lane2 = myArray2[index2];
 
+            //dadsadasdada
+
             Car c1;
             //car offset is planeLenght for cars going from right to left;
             c1.offset=planeLength;
             c1.lane=lane2;
-            c1.speed = -0.3;
+            c1.speed = -0.3*speedModify;
             c1.color=rand()%3;
             Cars.push_back(c1); 
             
@@ -402,21 +449,21 @@ void on_timer(int id) {
                 l1.offset=planeLength;
                 l1.lane=-2;
                 l1.size=3;
-                l1.speed = -0.1 ;
+                l1.speed = -0.1*speedModify ;
                 Logs.push_back(l1);
 
                 Log l2;
                 l2.offset=planeLength;
                 l2.lane=-3;
                 l2.size=7;
-                l2.speed = -0.20;
+                l2.speed = -0.20*speedModify;
                 Logs.push_back(l2);
 
                 Log l3;
                 l3.offset=planeLength;
                 l3.lane=-5;
                 l3.size=5;
-                l3.speed = -0.15;
+                l3.speed = -0.15*speedModify;
                 Logs.push_back(l3); 
 
                 //adding turtles to the list
@@ -424,7 +471,7 @@ void on_timer(int id) {
                 t1.offset=0;
                 t1.size=3;
                 t1.lane=-1;
-                t1.speed=0.15;
+                t1.speed=0.15*speedModify;
                 t1.red=0;
                 t1.state=0;
                 Turtles.push_back(t1);
@@ -433,7 +480,7 @@ void on_timer(int id) {
                 t2.offset=0;
                 t2.size=2;
                 t2.lane=-4;
-                t2.speed=0.20;
+                t2.speed=0.20*speedModify;
                 t2.red=0;
                 t2.state=0;
                 Turtles.push_back(t2);
@@ -449,7 +496,9 @@ void on_timer(int id) {
 
                 //if it isn't in the process of dissapearing already. Start the dissapearing cycle
                 if(turtleIt->state==0)
-                    turtleIt->state=1;
+                    //if the difficulty isn't easy, make it dissapear
+                    if(gameDifficulty)
+                        turtleIt->state=1;
             }
 
             glutTimerFunc(TIMER_INTERVAL1,on_timer,TIMER_ID1);
@@ -459,7 +508,13 @@ void on_timer(int id) {
         so that every 500ms every chosen(to dissapear) turtle changes color and eventually dissapears
         */    
         case TIMER_ID3:
-            
+            //difficulty
+            if(gameDifficulty==2)
+                numberofBlinks=4;
+            else
+                numberofBlinks=6;
+
+
             for(auto it = Turtles.begin(); it != Turtles.end(); it++){
                 //if the turtle has blinked enough times its time to go!
                 if(it->state>numberofBlinks){
@@ -556,7 +611,7 @@ void on_timer(int id) {
 
                 //if we run out of lives the hearts dissapear and we get 3 lives back again
                 if(frog.noOfLives<=0)
-                    frog.noOfLives=3;
+                    frog.noOfLives=livesTotal;
                 
             }
             glutPostRedisplay();
@@ -837,14 +892,45 @@ void drawText() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glDisable(GL_LIGHTING);
-    glColor3f(7, 0, 0);
     
+    
+    //Number of lives
+    
+    
+    glColor3f(7, 0, 0);
     glRasterPos2f(-0.99, 0.9);
     sprintf(text, "Lives left: %d", frog.noOfLives);
     len = strlen(text);
     for (int i = 0; i < len; i++) {
         glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, text[i]);
     }
+    //difficulty 
+    glColor3f(0, 0, 0);
+    glRasterPos2f(-0.99, -0.9);
+    
+    //number to string;
+    char gameDifString [50];
+    if(gameDifficulty==0){
+        strcpy(gameDifString,"easy"); 
+    }
+    else if (gameDifficulty==1){
+        strcpy(gameDifString,"normal"); 
+    }
+    else
+        strcpy(gameDifString,"hard");
+
+
+
+    sprintf(text, "Difficulty: %s",gameDifString);
+    len = strlen(text);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, text[i]);
+    }
+
+
+
+
+    //game over
     if(gameOver){
         glColor3f(0, 0, 0);
         glRasterPos2f(-0.1, 0.8);

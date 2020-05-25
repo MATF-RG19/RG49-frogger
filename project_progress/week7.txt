@@ -1,0 +1,5 @@
+Added difficulty modes
+
+-Normal difficulty is unchanged
+-Easy difficulty doesn't have disappearing turtles, objects move slower and you have more lives.
+-Hard difficulty has faster disappearing turtles, objects move faster and you have less lives.
